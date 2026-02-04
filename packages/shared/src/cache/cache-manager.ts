@@ -1,4 +1,5 @@
 import { redisClient } from './redis-client';
+import Redis from 'ioredis';
 import { CacheKeys, CacheTTL } from './cache-keys';
 
 export interface CacheOptions {
@@ -9,7 +10,10 @@ export interface CacheOptions {
 export class CacheManager {
   private static instance: CacheManager;
   private client = redisClient.getClient();
-
+ 
+  public getClient(): Redis {
+    return this.client;
+  }
   private constructor() {}
 
   public static getInstance(): CacheManager {
@@ -36,11 +40,11 @@ export class CacheManager {
   /**
    * Get a value from cache
    */
-  async get<T>(key: string, deserialize = true): Promise<T | null> {
-    const value = await this.client.get(key);
+  async get<T = any>(key: string, deserialize = true): Promise<T | null> {
+    const value = (await this.client.get(key)) as string | null;
     if (value === null) return null;
 
-    return deserialize ? JSON.parse(value) : value;
+    return deserialize ? (JSON.parse(value) as unknown as T) : (value as unknown as T);
   }
 
   /**
@@ -115,11 +119,11 @@ export class CacheManager {
    */
   async mget<T>(keys: string[], deserialize = true): Promise<(T | null)[]> {
     if (keys.length === 0) return [];
-    
-    const values = await this.client.mget(...keys);
+
+    const values = (await this.client.mget(...keys)) as (string | null)[];
     return values.map(value => {
       if (value === null) return null;
-      return deserialize ? JSON.parse(value) : value;
+      return deserialize ? (JSON.parse(value) as unknown as T) : (value as unknown as T);
     });
   }
 
@@ -150,8 +154,8 @@ export class CacheManager {
    * Remove and return item from list (right pop)
    */
   async rpop<T>(key: string): Promise<T | null> {
-    const value = await this.client.rpop(key);
-    return value ? JSON.parse(value) : null;
+    const value = (await this.client.rpop(key)) as string | null;
+    return value ? (JSON.parse(value) as unknown as T) : null;
   }
 
   /**
@@ -165,8 +169,8 @@ export class CacheManager {
    * Get list range
    */
   async lrange<T>(key: string, start: number, stop: number): Promise<T[]> {
-    const values = await this.client.lrange(key, start, stop);
-    return values.map(v => JSON.parse(v));
+    const values = (await this.client.lrange(key, start, stop)) as string[];
+    return values.map(v => JSON.parse(v) as unknown as T);
   }
 
   /**
@@ -181,8 +185,8 @@ export class CacheManager {
    * Get all members of a set
    */
   async smembers<T>(key: string): Promise<T[]> {
-    const members = await this.client.smembers(key);
-    return members.map(m => JSON.parse(m));
+    const members = (await this.client.smembers(key)) as string[];
+    return members.map(m => JSON.parse(m) as unknown as T);
   }
 
   /**
@@ -212,21 +216,21 @@ export class CacheManager {
    * Get hash field
    */
   async hget<T>(key: string, field: string): Promise<T | null> {
-    const value = await this.client.hget(key, field);
-    return value ? JSON.parse(value) : null;
+    const value = (await this.client.hget(key, field)) as string | null;
+    return value ? (JSON.parse(value) as unknown as T) : null;
   }
 
   /**
    * Get all hash fields and values
    */
   async hgetall<T>(key: string): Promise<Record<string, T>> {
-    const hash = await this.client.hgetall(key);
+    const hash = (await this.client.hgetall(key)) as Record<string, string>;
     const result: Record<string, T> = {};
-    
+
     for (const [field, value] of Object.entries(hash)) {
-      result[field] = JSON.parse(value);
+      result[field] = JSON.parse(value) as unknown as T;
     }
-    
+
     return result;
   }
 

@@ -16,7 +16,6 @@ export class RedisClient {
       port: config.port,
       password: config.password,
       db: config.db,
-      retryDelayOnFailover: config.retryDelayOnFailover,
       maxRetriesPerRequest: config.maxRetriesPerRequest,
       lazyConnect: true,
     });

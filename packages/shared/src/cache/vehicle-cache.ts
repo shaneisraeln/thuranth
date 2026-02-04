@@ -102,11 +102,11 @@ export class VehicleCache {
    */
   async getMultipleVehicleLocations(vehicleIds: string[]): Promise<Record<string, { latitude: number; longitude: number; timestamp: Date } | null>> {
     const keys = vehicleIds.map(id => CacheKeys.vehicleLocation(id));
-    const locations = await cacheManager.mget(keys);
-    
+    const locations = await cacheManager.mget<{ latitude: number; longitude: number; timestamp: Date }>(keys);
+
     const result: Record<string, { latitude: number; longitude: number; timestamp: Date } | null> = {};
     vehicleIds.forEach((id, index) => {
-      result[id] = locations[index];
+      result[id] = locations[index] as { latitude: number; longitude: number; timestamp: Date } | null;
     });
     
     return result;

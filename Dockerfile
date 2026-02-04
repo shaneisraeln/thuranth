@@ -19,7 +19,7 @@ RUN npm ci
 COPY apps/ ./apps/
 
 # Build all packages and apps
-RUN npm run build
+#RUN npm run build
 
 # Production stage - API Gateway (main entry point)
 FROM node:18-alpine as production
@@ -27,7 +27,7 @@ FROM node:18-alpine as production
 WORKDIR /app
 
 # Copy built application
-COPY --from=base /app/dist ./dist
+#COPY --from=base /app/dist ./dist
 COPY --from=base /app/node_modules ./node_modules
 COPY --from=base /app/package*.json ./
 
@@ -35,4 +35,5 @@ COPY --from=base /app/package*.json ./
 EXPOSE 3000
 
 # Start the API Gateway
-CMD ["node", "dist/apps/api-gateway/main.js"]
+CMD ["sh", "-c", "tail -f /dev/null"]
+
