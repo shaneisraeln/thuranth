@@ -1,0 +1,9 @@
+{
+    "$schema": "https://json.hemastore.org/nest-cli",
+    "collection": "@nestjs/schematics",
+    "sourceRoot": "src",
+    "compilerOptions": {
+        "deleteOutDir": true
+    }
+}
+sc

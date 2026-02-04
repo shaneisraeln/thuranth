@@ -1,0 +1,149 @@
+# Prometheus configuration for PDCP monitoring
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    cluster: 'pdcp-production'
+    replica: 'prometheus-1'
+
+# Alertmanager configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+          - alertmanager:9093
+
+# Load rules once and periodically evaluate them
+rule_files:
+  - "rules/*.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus itself
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Node Exporter for system metrics
+  - job_name: 'node-exporter'
+    static_configs:
+      - targets: ['node-exporter:9100']
+    scrape_interval: 30s
+
+  # Redis metrics
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis-exporter:9121']
+    scrape_interval: 30s
+
+  # PostgreSQL metrics
+  - job_name: 'postgres'
+    static_configs:
+      - targets: ['postgres-exporter:9187']
+    scrape_interval: 30s
+
+  # PDCP Application Services
+  - job_name: 'pdcp-auth-service'
+    static_configs:
+      - targets: ['auth-service:3010']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  - job_name: 'pdcp-decision-engine'
+    static_configs:
+      - targets: ['decision-engine:3011']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  - job_name: 'pdcp-vehicle-tracking'
+    static_configs:
+      - targets: ['vehicle-tracking:3012']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  - job_name: 'pdcp-parcel-management'
+    static_configs:
+      - targets: ['parcel-management:3013']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  - job_name: 'pdcp-custody-service'
+    static_configs:
+      - targets: ['custody-service:3014']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  - job_name: 'pdcp-analytics-service'
+    static_configs:
+      - targets: ['analytics-service:3015']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  - job_name: 'pdcp-audit-service'
+    static_configs:
+      - targets: ['audit-service:3016']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  - job_name: 'pdcp-api-gateway'
+    static_configs:
+      - targets: ['api-gateway:3000']
+    metrics_path: '/metrics'
+    scrape_interval: 15s
+
+  # Health check endpoints
+  - job_name: 'pdcp-health-checks'
+    static_configs:
+      - targets: 
+        - 'auth-service:3010'
+        - 'decision-engine:3011'
+        - 'vehicle-tracking:3012'
+        - 'parcel-management:3013'
+        - 'custody-service:3014'
+        - 'analytics-service:3015'
+        - 'audit-service:3016'
+        - 'api-gateway:3000'
+    metrics_path: '/monitoring/health'
+    scrape_interval: 30s
+
+  # Custom application metrics
+  - job_name: 'pdcp-business-metrics'
+    static_configs:
+      - targets:
+        - 'decision-engine:3011'
+        - 'vehicle-tracking:3012'
+        - 'parcel-management:3013'
+    metrics_path: '/monitoring/metrics/business'
+    scrape_interval: 60s
+
+  # Blackbox exporter for external service monitoring
+  - job_name: 'blackbox'
+    metrics_path: /probe
+    params:
+      module: [http_2xx]
+    static_configs:
+      - targets:
+        - https://maps.googleapis.com/maps/api/geocode/json
+        - https://firebase.googleapis.com
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: blackbox-exporter:9115
+
+# Remote write configuration (for long-term storage)
+# remote_write:
+#   - url: "https://prometheus-remote-write-endpoint/api/v1/write"
+#     basic_auth:
+#       username: "username"
+#       password: "password"
+
+# Remote read configuration
+# remote_read:
+#   - url: "https://prometheus-remote-read-endpoint/api/v1/read"
+#     basic_auth:
+#       username: "username"
+#       password: "password"

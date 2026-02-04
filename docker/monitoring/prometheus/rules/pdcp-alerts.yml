@@ -1,0 +1,236 @@
+# PDCP Alert Rules for Prometheus
+
+groups:
+  - name: pdcp-system-alerts
+    rules:
+      # High CPU usage
+      - alert: HighCPUUsage
+        expr: 100 - (avg by(instance) (irate(node_cpu_seconds_total{mode="idle"}[5m])) * 100) > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "High CPU usage detected"
+          description: "CPU usage is above 80% for more than 5 minutes on {{ $labels.instance }}"
+
+      # High memory usage
+      - alert: HighMemoryUsage
+        expr: (node_memory_MemTotal_bytes - node_memory_MemAvailable_bytes) / node_memory_MemTotal_bytes * 100 > 85
+        for: 5m
+        labels:
+          severity: warning
+          service: system
+        annotations:
+          summary: "High memory usage detected"
+          description: "Memory usage is above 85% for more than 5 minutes on {{ $labels.instance }}"
+
+      # Disk space low
+      - alert: DiskSpaceLow
+        expr: (node_filesystem_avail_bytes{fstype!="tmpfs"} / node_filesystem_size_bytes{fstype!="tmpfs"}) * 100 < 10
+        for: 5m
+        labels:
+          severity: critical
+          service: system
+        annotations:
+          summary: "Disk space is running low"
+          description: "Disk space is below 10% on {{ $labels.instance }} filesystem {{ $labels.mountpoint }}"
+
+  - name: pdcp-application-alerts
+    rules:
+      # Service down
+      - alert: ServiceDown
+        expr: up{job=~"pdcp-.*"} == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: "{{ $labels.job }}"
+        annotations:
+          summary: "PDCP service is down"
+          description: "{{ $labels.job }} has been down for more than 1 minute"
+
+      # High response time
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=~"pdcp-.*"}[5m])) > 1
+        for: 5m
+        labels:
+          severity: warning
+          service: "{{ $labels.job }}"
+        annotations:
+          summary: "High response time detected"
+          description: "95th percentile response time is above 1 second for {{ $labels.job }}"
+
+      # High error rate
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{job=~"pdcp-.*",status=~"5.."}[5m]) / rate(http_requests_total{job=~"pdcp-.*"}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: "{{ $labels.job }}"
+        annotations:
+          summary: "High error rate detected"
+          description: "Error rate is above 5% for {{ $labels.job }}"
+
+  - name: pdcp-database-alerts
+    rules:
+      # Database connection issues
+      - alert: DatabaseConnectionHigh
+        expr: pg_stat_activity_count > 80
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "High number of database connections"
+          description: "PostgreSQL has {{ $value }} active connections"
+
+      # Slow queries
+      - alert: SlowQueries
+        expr: pg_stat_statements_mean_time_seconds > 1
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "Slow database queries detected"
+          description: "Average query time is {{ $value }} seconds"
+
+      # Database down
+      - alert: DatabaseDown
+        expr: pg_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: database
+        annotations:
+          summary: "PostgreSQL database is down"
+          description: "PostgreSQL database has been down for more than 1 minute"
+
+  - name: pdcp-redis-alerts
+    rules:
+      # Redis down
+      - alert: RedisDown
+        expr: redis_up == 0
+        for: 1m
+        labels:
+          severity: critical
+          service: redis
+        annotations:
+          summary: "Redis is down"
+          description: "Redis has been down for more than 1 minute"
+
+      # High memory usage
+      - alert: RedisHighMemoryUsage
+        expr: redis_memory_used_bytes / redis_memory_max_bytes * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+          service: redis
+        annotations:
+          summary: "Redis memory usage is high"
+          description: "Redis memory usage is above 90%"
+
+      # High number of rejected connections
+      - alert: RedisRejectedConnections
+        expr: increase(redis_rejected_connections_total[5m]) > 0
+        for: 1m
+        labels:
+          severity: warning
+          service: redis
+        annotations:
+          summary: "Redis is rejecting connections"
+          description: "Redis has rejected {{ $value }} connections in the last 5 minutes"
+
+  - name: pdcp-business-alerts
+    rules:
+      # SLA risk
+      - alert: HighSLARisk
+        expr: pdcp_parcels_sla_risk_total > 10
+        for: 2m
+        labels:
+          severity: critical
+          service: business
+        annotations:
+          summary: "High number of parcels at SLA risk"
+          description: "{{ $value }} parcels are at risk of missing their SLA deadline"
+
+      # Decision engine failure rate
+      - alert: HighDecisionFailureRate
+        expr: rate(pdcp_decisions_failed_total[5m]) / rate(pdcp_decisions_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: decision-engine
+        annotations:
+          summary: "High decision engine failure rate"
+          description: "Decision engine failure rate is {{ $value | humanizePercentage }}"
+
+      # Low vehicle utilization
+      - alert: LowVehicleUtilization
+        expr: pdcp_vehicle_utilization_average < 30
+        for: 10m
+        labels:
+          severity: info
+          service: business
+        annotations:
+          summary: "Low vehicle utilization"
+          description: "Average vehicle utilization is {{ $value }}%"
+
+      # Overdue parcels
+      - alert: OverdueParcels
+        expr: pdcp_parcels_overdue_total > 0
+        for: 1m
+        labels:
+          severity: critical
+          service: business
+        annotations:
+          summary: "Parcels have exceeded SLA deadline"
+          description: "{{ $value }} parcels have exceeded their SLA deadline"
+
+  - name: pdcp-security-alerts
+    rules:
+      # High number of authentication failures
+      - alert: HighAuthFailures
+        expr: increase(pdcp_auth_failures_total[5m]) > 10
+        for: 2m
+        labels:
+          severity: warning
+          service: security
+        annotations:
+          summary: "High number of authentication failures"
+          description: "{{ $value }} authentication failures in the last 5 minutes"
+
+      # Suspicious API activity
+      - alert: SuspiciousAPIActivity
+        expr: rate(http_requests_total{status="401"}[5m]) > 1
+        for: 5m
+        labels:
+          severity: warning
+          service: security
+        annotations:
+          summary: "Suspicious API activity detected"
+          description: "High rate of 401 responses: {{ $value }} per second"
+
+  - name: pdcp-external-services-alerts
+    rules:
+      # Google Maps API issues
+      - alert: GoogleMapsAPIDown
+        expr: probe_success{job="blackbox",instance="https://maps.googleapis.com/maps/api/geocode/json"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          service: external
+        annotations:
+          summary: "Google Maps API is not responding"
+          description: "Google Maps API has been unresponsive for more than 2 minutes"
+
+      # Firebase Auth issues
+      - alert: FirebaseAuthDown
+        expr: probe_success{job="blackbox",instance="https://firebase.googleapis.com"} == 0
+        for: 2m
+        labels:
+          severity: warning
+          service: external
+        annotations:
+          summary: "Firebase Auth is not responding"
+          description: "Firebase Auth has been unresponsive for more than 2 minutes"

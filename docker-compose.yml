@@ -1,0 +1,244 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: pdcp-postgres
+    environment:
+      POSTGRES_DB: pdcp_db
+      POSTGRES_USER: pdcp_user
+      POSTGRES_PASSWORD: pdcp_password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pdcp_user -d pdcp_db"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  redis:
+    image: redis:7-alpine
+    container_name: pdcp-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Development services (will be added as we build them)
+  decision-engine:
+    build:
+      context: .
+      dockerfile: apps/decision-engine/Dockerfile
+    container_name: pdcp-decision-engine
+    ports:
+      - "3001:3000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://pdcp_user:pdcp_password@postgres:5432/pdcp_db
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/decision-engine:/app
+      - /app/node_modules
+    profiles:
+      - services
+
+  vehicle-tracking:
+    build:
+      context: .
+      dockerfile: apps/vehicle-tracking/Dockerfile
+    container_name: pdcp-vehicle-tracking
+    ports:
+      - "3002:3000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://pdcp_user:pdcp_password@postgres:5432/pdcp_db
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/vehicle-tracking:/app
+      - /app/node_modules
+    profiles:
+      - services
+
+  auth-service:
+    build:
+      context: .
+      dockerfile: apps/auth-service/Dockerfile
+    container_name: pdcp-auth-service
+    ports:
+      - "3003:3003"
+    environment:
+      - NODE_ENV=development
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USERNAME=pdcp_user
+      - DB_PASSWORD=pdcp_password
+      - DB_NAME=pdcp_auth
+      - REDIS_URL=redis://redis:6379
+      - JWT_SECRET=your-jwt-secret-key-here
+      - JWT_REFRESH_SECRET=your-jwt-refresh-secret-key-here
+      - FIREBASE_PROJECT_ID=your-firebase-project-id
+      - FIREBASE_PRIVATE_KEY=your-firebase-private-key
+      - FIREBASE_CLIENT_EMAIL=your-firebase-client-email
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/auth-service:/app
+      - /app/node_modules
+    profiles:
+      - services
+
+  parcel-management:
+    build:
+      context: .
+      dockerfile: apps/parcel-management/Dockerfile
+    container_name: pdcp-parcel-management
+    ports:
+      - "3004:3000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://pdcp_user:pdcp_password@postgres:5432/pdcp_db
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/parcel-management:/app
+      - /app/node_modules
+    profiles:
+      - services
+
+  custody-service:
+    build:
+      context: .
+      dockerfile: apps/custody-service/Dockerfile
+    container_name: pdcp-custody-service
+    ports:
+      - "3005:3000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://pdcp_user:pdcp_password@postgres:5432/pdcp_db
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/custody-service:/app
+      - /app/node_modules
+    profiles:
+      - services
+
+  analytics-service:
+    build:
+      context: .
+      dockerfile: apps/analytics-service/Dockerfile
+    container_name: pdcp-analytics-service
+    ports:
+      - "3006:3000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://pdcp_user:pdcp_password@postgres:5432/pdcp_db
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/analytics-service:/app
+      - /app/node_modules
+    profiles:
+      - services
+
+  audit-service:
+    build:
+      context: .
+      dockerfile: apps/audit-service/Dockerfile
+    container_name: pdcp-audit-service
+    ports:
+      - "3007:3000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://pdcp_user:pdcp_password@postgres:5432/pdcp_db
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./apps/audit-service:/app
+      - /app/node_modules
+    profiles:
+      - services
+
+  api-gateway:
+    build:
+      context: .
+      dockerfile: apps/api-gateway/Dockerfile
+    container_name: pdcp-api-gateway
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - JWT_SECRET=your-jwt-secret-key-here
+      - JWT_EXPIRES_IN=1h
+      - ALLOWED_ORIGINS=http://localhost:3000,http://localhost:3001
+      - DECISION_ENGINE_URL=http://decision-engine:3000
+      - VEHICLE_TRACKING_URL=http://vehicle-tracking:3000
+      - AUTH_SERVICE_URL=http://auth-service:3003
+      - PARCEL_MANAGEMENT_URL=http://parcel-management:3000
+      - CUSTODY_SERVICE_URL=http://custody-service:3000
+      - ANALYTICS_SERVICE_URL=http://analytics-service:3000
+      - AUDIT_SERVICE_URL=http://audit-service:3000
+      - GOOGLE_MAPS_API_KEY=your-google-maps-api-key-here
+      - FIREBASE_PROJECT_ID=your-firebase-project-id
+      - FIREBASE_PRIVATE_KEY=your-firebase-private-key
+      - FIREBASE_CLIENT_EMAIL=your-firebase-client-email
+      - DEFAULT_API_KEYS=[{"key":"pdcp_dev_key_123","name":"Development Key","permissions":["read","write"],"rateLimit":{"requests":1000,"windowMs":3600000},"isActive":true,"createdAt":"2024-01-01T00:00:00.000Z"}]
+    depends_on:
+      - decision-engine
+      - vehicle-tracking
+      - auth-service
+      - parcel-management
+      - custody-service
+      - analytics-service
+      - audit-service
+    volumes:
+      - ./apps/api-gateway:/app
+      - /app/node_modules
+    profiles:
+      - services
+
+volumes:
+  postgres_data:
+  redis_data:
+
+networks:
+  default:
+    name: pdcp-network

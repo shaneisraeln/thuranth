@@ -1,0 +1,28 @@
+{
+    "name": "@pdcp/shared",
+    "version": "1.0.0",
+    "description": "Shared utilities and configurations for PDCP",
+    "main": "dist/index.js",
+    "types": "dist/index.d.ts",
+    "scripts": {
+        "build": "tsc",
+        "dev": "tsc --watch",
+        "clean": "rm -rf dist",
+        "migrate": "ts-node src/database/migrate.ts",
+        "seed": "ts-node src/database/seed.ts"
+    },
+    "dependencies": {
+        "@pdcp/types": "*",
+        "class-validator": "^0.14.0",
+        "class-transformer": "^0.5.1",
+        "pg": "^8.11.0",
+        "ioredis": "^5.3.0"
+    },
+    "devDependencies": {
+        "typescript": "^5.0.0",
+        "@types/node": "^20.0.0",
+        "@types/pg": "^8.10.0",
+        "ts-node": "^10.9.0",
+        "@types/ioredis": "^5.0.0"
+    }
+}
